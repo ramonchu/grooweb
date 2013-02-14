@@ -1,4 +1,7 @@
-grooweb
+Grooweb
 =======
 
-Quick start up web, including simple web framework, with dynamic controllers (and views) based on groovy (and jsp), JSR 303 and CDI with Guice.
+Quick maven start up webapp, including simple web framework, with dynamic controllers (and views) 
+based on groovy. It includes JSR 303 Validations, CDI with Guice, and Json with Jackson Mapper.
+
+
