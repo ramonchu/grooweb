@@ -7,6 +7,7 @@ import java.net.URL;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
 
+import com.arteco.grooweb.web.GrooServlet;
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -52,7 +53,6 @@ public class GrooServletContexListener extends GuiceServletContextListener {
 
 			@Override
 			protected void configureServlets() {
-				bind(GrooScriptEngine.class);
 				serve("*.html", "*.json").with(GrooServlet.class);
 			}
 		}).with(grooModule);
