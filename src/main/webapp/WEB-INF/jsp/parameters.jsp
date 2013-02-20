@@ -17,9 +17,13 @@
 		<div class="row">
 			<div class="span12">
 				<h1><a href="/index.html">Grooweb</a></h1>
-				<h2>Prueba</h2>
+			
+				<h2>Parameters</h1>
 				
-				<p>This content [msg = "${msg}"] comes from Controller output parameter</p>
+				id=${id}<br/>
+				from=${from}<br/>
+				to=${to}<br/>
+				
 			</div>
 		</div>
 

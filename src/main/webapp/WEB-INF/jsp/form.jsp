@@ -21,7 +21,7 @@
 				<h2>Form</h1>
 				<p>with validations</p>
 				
-				<form action="/formUpdate.html">
+				<form action="/formUpdate.html" method="post">
 					<label>
 						Name @Length(min=3)<br/>
 						<input name="name" value="${form.name}">
@@ -38,10 +38,7 @@
 					<button type="submit" class="btn btn-primary">Send</button>
 				</form>
 				
-				<c:if test="${not empty param.msg}">
-					<div class="red">form processed ok</div>
-				</c:if>
-				
+						
 				
 			</div>
 		</div>
