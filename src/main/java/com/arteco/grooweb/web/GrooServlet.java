@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Date;
 import java.util.Map;
 import java.util.Map.Entry;
 
@@ -25,13 +26,10 @@ import javax.validation.Validation;
 import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 
-import org.apache.commons.beanutils.BeanUtils;
+import org.apache.commons.beanutils.ConvertUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 
-import com.arteco.grooweb.web.GrooErrors;
-import com.arteco.grooweb.web.GrooModel;
-import com.arteco.grooweb.web.GrooValidable;
 import com.google.inject.Injector;
 
 @Singleton
@@ -51,11 +49,13 @@ public class GrooServlet extends HttpServlet {
 	public Validator validator;
 	public ObjectMapper mapper;
 
+	@Override
 	@PostConstruct
 	public void init() {
 		ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
 		validator = factory.getValidator();
 		mapper = new ObjectMapper();
+		ConvertUtils.register(new GrooDateConverter(), Date.class);
 	}
 
 	@Override
@@ -69,45 +69,35 @@ public class GrooServlet extends HttpServlet {
 				response.sendError(HttpServletResponse.SC_NOT_FOUND);
 				return;
 			}
-			Class<?> clazz = resolveClass(request, path);
+			Class<? extends GrooController> clazz = resolveClass(request, path);
 			Method method = resolveMethod(path, clazz);
 
 			Class<?>[] paramsClass = method.getParameterTypes();
 			Object[] paramsValues = new Object[paramsClass.length];
 			int i = 0;
-			int ierrors = -1;
-			Object validable = null;
 			GrooModel model = new GrooModel();
 			for (Class<?> paramClass : paramsClass) {
-				if (paramClass.isAssignableFrom(HttpServletRequest.class))
+				if (paramClass.isAssignableFrom(HttpServletRequest.class)) {
 					paramsValues[i] = request;
-				else if (paramClass.isAssignableFrom(HttpServletResponse.class))
+				} else if (paramClass.isAssignableFrom(HttpServletResponse.class)) {
 					paramsValues[i] = response;
-				else if (paramClass.isAssignableFrom(HttpSession.class))
+				} else if (paramClass.isAssignableFrom(HttpSession.class)) {
 					paramsValues[i] = request.getSession();
-				else if (paramClass.isAssignableFrom(Validator.class))
+				} else if (paramClass.isAssignableFrom(Validator.class)) {
 					paramsValues[i] = validator;
-				else if (paramClass.isAssignableFrom(GrooModel.class)) {
+				} else if (paramClass.isAssignableFrom(GrooModel.class)) {
 					paramsValues[i] = model;
-				} else if (paramClass.isAssignableFrom(GrooErrors.class)) {
-					ierrors = i;
-				} else {
-					paramsValues[i] = paramClass.newInstance();
-					if (paramsValues[i] instanceof GrooValidable) {
-						validable = paramsValues[i];
-					}
 				}
 				i++;
 			}
-			GrooErrors gerrors = null;
-			if (ierrors >= 0 && validable != null) {
-				BeanUtils.populate(validable, request.getParameterMap());
-				paramsValues[ierrors] = gerrors = new GrooErrors(validator.validate(validable));
-			}
 
-			Object controller = injector.getInstance(clazz);
+			GrooController controller = injector.getInstance(clazz);
+			controller.request = request;
+			controller.response = response;
+			controller.validator = validator;
+			controller.model = model;
 			Object obj = clazz.getMethod(method.getName(), paramsClass).invoke(controller, paramsValues);
-			resolveOutput(request, response, model, obj, gerrors);
+			resolveOutput(request, response, model, obj);
 
 		} catch (Exception e) {
 			e.printStackTrace();
@@ -115,15 +105,11 @@ public class GrooServlet extends HttpServlet {
 
 	}
 
-	private void resolveOutput(HttpServletRequest request, HttpServletResponse response, GrooModel model, Object obj,
-			GrooErrors gerrors) throws Exception {
+	private void resolveOutput(HttpServletRequest request, HttpServletResponse response, GrooModel model, Object obj) throws Exception {
 		if (obj instanceof String) {
 			String view = (String) obj;
 			if (model != null) {
 				copyModel(request, model);
-			}
-			if (gerrors != null) {
-				request.setAttribute("errors", gerrors);
 			}
 			if (StringUtils.startsWith(view, "redirect:")) {
 				response.sendRedirect(StringUtils.substringAfter(view, ":"));
@@ -156,18 +142,17 @@ public class GrooServlet extends HttpServlet {
 		return method;
 	}
 
-	private Class<?> resolveClass(HttpServletRequest request, String[] path) throws MalformedURLException,
-			ClassNotFoundException {
+	private Class<? extends GrooController> resolveClass(HttpServletRequest request, String[] path) throws MalformedURLException, ClassNotFoundException {
 		if (gse == null || development) {
 			initializeGse(request);
 		}
-		Class<?> clazz = gse.getGroovyClassLoader().loadClass(path[0]);
+		@SuppressWarnings("unchecked")
+		Class<? extends GrooController> clazz = (Class<? extends GrooController>) gse.getGroovyClassLoader().loadClass(path[0]);
 		return clazz;
 	}
 
 	@SuppressWarnings("unchecked")
-	private String[] resolveMapping(HttpServletRequest request, HttpServletResponse response) throws Exception,
-			ScriptException {
+	private String[] resolveMapping(HttpServletRequest request, HttpServletResponse response) throws Exception, ScriptException {
 		String uri = request.getRequestURI();
 		Binding binding = new Binding();
 

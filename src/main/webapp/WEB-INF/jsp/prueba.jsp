@@ -19,7 +19,7 @@
 				<h1><a href="/index.html">Grooweb</a></h1>
 				<h2>Prueba</h2>
 				
-				<p>This content [cont = "${cont}"] comes from Controller output parameter</p>
+				<p>This content [msg = "${msg}"] comes from Controller output parameter</p>
 			</div>
 		</div>
 
