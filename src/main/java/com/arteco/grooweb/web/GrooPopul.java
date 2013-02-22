@@ -1,5 +1,6 @@
 package com.arteco.grooweb.web;
 
+
 public class GrooPopul<T> {
 
 	private GrooErrors errors;
@@ -21,5 +22,11 @@ public class GrooPopul<T> {
 	public boolean hasError() {
 		return !errors.isEmpty();
 	}
+
+	public void rejectField(String field, String messaje) {
+		errors.rejectField(field, messaje);
+	}
+
+
 
 }

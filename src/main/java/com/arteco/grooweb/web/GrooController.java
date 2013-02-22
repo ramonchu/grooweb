@@ -13,6 +13,7 @@ public class GrooController {
 	protected HttpServletRequest request;
 	protected HttpServletResponse response;
 	protected GrooModel model;
+	protected GrooMessenger messenger;
 
 	public GrooErrors validate(Object obj) {
 		return new GrooErrors(validator.validate(obj));

@@ -10,8 +10,11 @@ import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -48,6 +51,7 @@ public class GrooServlet extends HttpServlet {
 
 	public Validator validator;
 	public ObjectMapper mapper;
+	public GrooMessenger messenger;
 
 	@Override
 	@PostConstruct
@@ -56,6 +60,13 @@ public class GrooServlet extends HttpServlet {
 		validator = factory.getValidator();
 		mapper = new ObjectMapper();
 		ConvertUtils.register(new GrooDateConverter(), Date.class);
+		development = "true".equals(System.getProperty("grooweb.devel"));
+
+		Logger.getLogger(this.getClass().getName()).log(
+				Level.INFO,
+				"\n================================================\n\tGrooweb is in "
+						+ ((development) ? "DEVELOPMENT" : "PRODUCTION")
+						+ " mode\n================================================");
 	}
 
 	@Override
@@ -96,6 +107,8 @@ public class GrooServlet extends HttpServlet {
 			controller.response = response;
 			controller.validator = validator;
 			controller.model = model;
+			controller.messenger = getMessenger();
+
 			Object obj = clazz.getMethod(method.getName(), paramsClass).invoke(controller, paramsValues);
 			resolveOutput(request, response, model, obj);
 
@@ -105,7 +118,15 @@ public class GrooServlet extends HttpServlet {
 
 	}
 
-	private void resolveOutput(HttpServletRequest request, HttpServletResponse response, GrooModel model, Object obj) throws Exception {
+	private GrooMessenger getMessenger() {
+		if (messenger == null || development) {
+			messenger = new GrooMessenger();
+		}
+		return messenger;
+	}
+
+	private void resolveOutput(HttpServletRequest request, HttpServletResponse response, GrooModel model, Object obj)
+			throws Exception {
 		if (obj instanceof String) {
 			String view = (String) obj;
 			if (model != null) {
@@ -142,25 +163,28 @@ public class GrooServlet extends HttpServlet {
 		return method;
 	}
 
-	private Class<? extends GrooController> resolveClass(HttpServletRequest request, String[] path) throws MalformedURLException, ClassNotFoundException {
+	private Class<? extends GrooController> resolveClass(HttpServletRequest request, String[] path)
+			throws MalformedURLException, ClassNotFoundException {
 		if (gse == null || development) {
 			initializeGse(request);
 		}
 		@SuppressWarnings("unchecked")
-		Class<? extends GrooController> clazz = (Class<? extends GrooController>) gse.getGroovyClassLoader().loadClass(path[0]);
+		Class<? extends GrooController> clazz = (Class<? extends GrooController>) gse.getGroovyClassLoader().loadClass(
+				path[0]);
 		return clazz;
 	}
 
-	@SuppressWarnings("unchecked")
-	private String[] resolveMapping(HttpServletRequest request, HttpServletResponse response) throws Exception, ScriptException {
+	private String[] resolveMapping(HttpServletRequest request, HttpServletResponse response) throws Exception,
+			ScriptException {
 		String uri = request.getRequestURI();
 		Binding binding = new Binding();
+		binding.setVariable("grooweb", this);
 
 		if (gse == null || development) {
 			initializeGse(request);
 		}
-		if (mapURLs == null || development) {
-			mapURLs = (Map<String, String>) gse.run("conf/Mappings.groovy", binding);
+		if (mapURLs == null || mapURLs.isEmpty() || development) {
+			gse.run("conf/Mappings.groovy", binding);
 		}
 		String result = mapURLs.get(uri);
 		if (result == null) {
@@ -175,4 +199,18 @@ public class GrooServlet extends HttpServlet {
 		gse = new GroovyScriptEngine(new URL[] { new File(scriptsRoot).toURI().toURL() });
 	}
 
+	public void registerController(Class<? extends GrooController> controllerClazz) {
+		if (mapURLs == null) {
+			mapURLs = new HashMap<String, String>();
+		}
+		Method[] methods = controllerClazz.getDeclaredMethods();
+		for (Method m : methods) {
+			if (m.isAnnotationPresent(GrooMap.class)) {
+				GrooMap ann = m.getAnnotation(GrooMap.class);
+				mapURLs.put(ann.value(), controllerClazz.getName() + ":" + m.getName());
+//				System.out.println("Controller " + ann.value() + " >>> " + controllerClazz.getName() + ":"
+//						+ m.getName());
+			}
+		}
+	}
 }
