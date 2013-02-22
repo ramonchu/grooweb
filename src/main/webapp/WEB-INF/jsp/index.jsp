@@ -31,7 +31,7 @@
 					is only availiable in presetantion layer and not in service layer
 					provider by CDI.</p>
 
-				<h2>Includes</h2>
+				<p>Includes</p>
 				<ul>
 					<li>Html 5 boilerplate</li>
 					<li>Twitter bootstrap</li>
@@ -50,8 +50,12 @@
 					<li><a href="/prueba.json">JSON Response</a></li>
 					<li><a href="/redirect.html">Redirect to prueba.html, from redirect.html</a></li>
 					<li><a href="/form.html">JSR 303 Form validation</a></li>
-					<li>To Be Done</li>
-					<li><a href="#">Groovy Forms</a></li>
+					<li><a href="/groovyform.html">Groovy Forms</a></li>
+				</ul>
+				
+				
+				<p>Samples To Be Done</p>
+				<ul>
 					<li><a href="#">Custom validator</a></li>
 					<li><a href="#">Custom converter</a></li>
 					<li><a href="#">i18N Messages</a></li>

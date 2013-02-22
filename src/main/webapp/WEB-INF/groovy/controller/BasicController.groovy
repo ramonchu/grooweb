@@ -65,4 +65,18 @@ public class BasicController extends GrooController{
 		}
 		return "form.jsp";
 	}
+	
+	
+	public String groovyForm(){
+		def popul = populidate(form.BasicForm.class);
+		if(!popul.hasError()){
+			//update changes in service layer, and do redirect after post
+			return "redirect:/form.html?msg=saved";
+		}else{
+			//show de  html form with errors
+			model.put("form", popul.getValue());
+			model.put("errors", popul.getErrors());
+		}
+		return "form.jsp";
+	}
 }

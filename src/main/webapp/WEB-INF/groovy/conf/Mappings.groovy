@@ -8,7 +8,9 @@ package conf;
 	'/prueba.json':'controller.BasicController:pruebaJson',
 	'/redirect.html':'controller.BasicController:redirect',
 	'/form.html':'controller.BasicController:form',
-	'/formUpdate.html':'controller.BasicController:formUpdate'
+	'/formUpdate.html':'controller.BasicController:formUpdate',
+	
+	'/groovyform.html':'controller.BasicController:groovyForm'
 ];
 
 
