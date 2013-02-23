@@ -1,4 +1,5 @@
 <%@ page language="java" contentType="text/html; charset=utf-8" pageEncoding="utf-8"%>
+<%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <!DOCTYPE html>
 <!--[if lt IE 7]>      <html class="no-js lt-ie9 lt-ie8 lt-ie7"> <![endif]-->
 <!--[if IE 7]>         <html class="no-js lt-ie9 lt-ie8"> <![endif]-->
@@ -18,27 +19,11 @@
 			<div class="span12">
 				<h1><a href="/index.html">Grooweb</a></h1>
 			
-				<h2>Form</h1>
-				<p>with validations</p>
-				
-				<form action="${urlToPost}" method="post">
-					<label>
-						Name @Length(min=3)<br/>
-						<input name="name" value="${form.name}">
-						<p class="red">${errors.name}</p>
-					</label>
-					
-					<label>
-						Surname @Length(min=3)<br/>
-						<input name="surname" value="${form.surname}">
-						<p class="red">${errors.surname}</p>
-					</label>
-					
-					<br/>
-					<button type="submit" class="btn btn-primary">Send</button>
-				</form>
-				
-						
+				<p>Messages</p>
+			
+				<p>es: <c:out value="${messageEs}"/></p>
+				<p>en: <c:out value="${messageEn}"/> ${messageEn}</p>
+				<p>default: <c:out value="${messageDefault}"/></p>
 				
 			</div>
 		</div>

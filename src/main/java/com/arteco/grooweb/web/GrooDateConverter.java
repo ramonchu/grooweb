@@ -11,12 +11,17 @@ public class GrooDateConverter implements Converter {
 	private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public Object convert(@SuppressWarnings("rawtypes") Class type, Object value) {
 		try {
 			if (type.isAssignableFrom(Date.class)) {
 				return sdf.parse((String) value);
 			}
-			return null;
+			if (type.isAssignableFrom(String.class)) {
+				return sdf.format((Date) value);
+			} else {
+				throw new IllegalArgumentException("can't not be converter " + value + " to " + type);
+			}
 		} catch (ParseException e) {
 			throw new IllegalArgumentException(e.getMessage(), e);
 		}

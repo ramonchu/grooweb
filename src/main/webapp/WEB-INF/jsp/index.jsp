@@ -50,15 +50,18 @@
 					<li><a href="/prueba.json">JSON Response</a></li>
 					<li><a href="/redirect.html">Redirect to prueba.html, from redirect.html</a></li>
 					<li><a href="/form.html">JSR 303 Form validation</a></li>
-					<li>To Be Done</li>
-					<li><a href="#">Groovy Forms</a></li>
-					<li><a href="#">Custom validator</a></li>
+					<li><a href="/groovyForm.html">Groovy Forms with validation</a></li>
+					<li><a href="/i18n.html">i18N Messages</a></li>
+					<li><a href="/notAllowed.html">Role based security</a> (require ADMIN role)</li>
+					<li><a href="/xssAvoided.html">Cross Site Scripting avoided</a></li>
+					<li><a href="/jadeTemplate.html">Jade Template Engine sample</a></li>
+				</ul>
+				
+				<h3>To Be Done</h3>
+				<ul>
 					<li><a href="#">Custom converter</a></li>
-					<li><a href="#">i18N Messages</a></li>
-					<li><a href="#">Role based security</a></li>
-					<li><a href="#">Jade Template Engine with bootstrap</a></li>
-					<li><a href="#">Cross Site Scripting avoided</a></li>
-					<li><a href="#">GET | POST | PUT | ... Methods</a></li>
+					<li><a href="#">Custom validator</a></li>
+					
 					<li><a href="#">Html helpers</a></li>
 					<li><a href="#">More complex expressions with OGNL</a></li>
 				</ul>

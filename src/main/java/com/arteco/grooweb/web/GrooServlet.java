@@ -2,6 +2,7 @@ package com.arteco.grooweb.web;
 
 import groovy.lang.Binding;
 import groovy.util.GroovyScriptEngine;
+import groovy.util.ResourceException;
 import groovy.util.ScriptException;
 
 import java.io.File;
@@ -9,10 +10,13 @@ import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -30,28 +34,34 @@ import javax.validation.Validator;
 import javax.validation.ValidatorFactory;
 
 import org.apache.commons.beanutils.ConvertUtils;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import com.google.inject.Injector;
+
+import de.neuland.jade4j.Jade4J;
+import de.neuland.jade4j.JadeConfiguration;
+import de.neuland.jade4j.template.JadeTemplate;
 
 @Singleton
 public class GrooServlet extends HttpServlet {
 
 	private static final long serialVersionUID = 1L;
 
-	private GroovyScriptEngine gse;
+	private static final String GROOVY_PATH = "/WEB-INF/groovy";
+
+	private static final String CONTEXT_KEY_MAPPINGS = "grooweb.mappings";
+	private static final String CONTEXT_KEY_GSE = "grooweb.gse";
 
 	@Inject
 	private Injector injector;
-
-	private boolean development = true;
-
-	private Map<String, String> mapURLs;
-
-	public Validator validator;
-	public ObjectMapper mapper;
-	public GrooMessenger messenger;
+	private boolean development;
+	private Validator validator;
+	private ObjectMapper mapper;
+	private GrooMessenger messenger;
+	private GrooLocaleResolver localeResolver;
+	private JadeConfiguration config;
 
 	@Override
 	@PostConstruct
@@ -61,81 +71,145 @@ public class GrooServlet extends HttpServlet {
 		mapper = new ObjectMapper();
 		ConvertUtils.register(new GrooDateConverter(), Date.class);
 		development = "true".equals(System.getProperty("grooweb.devel"));
+		localeResolver = new GrooLocaleResolver();
+		config = new JadeConfiguration();
+		config.setMode(Jade4J.Mode.XHTML);
+		if (development) {
+			config.setCaching(false);
+		}
 
-		Logger.getLogger(this.getClass().getName()).log(
-				Level.INFO,
-				"\n================================================\n\tGrooweb is in "
-						+ ((development) ? "DEVELOPMENT" : "PRODUCTION")
-						+ " mode\n================================================");
+		Logger.getLogger(this.getClass().getName()).log(Level.INFO, "\n================================================\n\tGrooweb is in " + ((development) ? "DEVELOPMENT" : "PRODUCTION") + " mode\n================================================");
+
 	}
 
 	@Override
 	public void service(ServletRequest req, ServletResponse res) throws IOException {
+		HttpServletRequest request = (HttpServletRequest) req;
+		HttpServletResponse response = (HttpServletResponse) res;
 		try {
-			HttpServletRequest request = (HttpServletRequest) req;
-			HttpServletResponse response = (HttpServletResponse) res;
-
-			String[] path = resolveMapping(request, response);
-			if (path == null) {
-				response.sendError(HttpServletResponse.SC_NOT_FOUND);
-				return;
-			}
-			Class<? extends GrooController> clazz = resolveClass(request, path);
-			Method method = resolveMethod(path, clazz);
-
-			Class<?>[] paramsClass = method.getParameterTypes();
-			Object[] paramsValues = new Object[paramsClass.length];
-			int i = 0;
+			GroovyScriptEngine gse = getGroovyScriptEngine(request);
+			Map<String, String> mappings = getMappings(gse, request);
+			String[] path = resolveMapping(gse, mappings, request, response);
+			Class<? extends GrooController> controllerClass = resolveClass(gse, request, path[0]);
+			Method method = resolveMethod(path, controllerClass);
 			GrooModel model = new GrooModel();
-			for (Class<?> paramClass : paramsClass) {
-				if (paramClass.isAssignableFrom(HttpServletRequest.class)) {
-					paramsValues[i] = request;
-				} else if (paramClass.isAssignableFrom(HttpServletResponse.class)) {
-					paramsValues[i] = response;
-				} else if (paramClass.isAssignableFrom(HttpSession.class)) {
-					paramsValues[i] = request.getSession();
-				} else if (paramClass.isAssignableFrom(Validator.class)) {
-					paramsValues[i] = validator;
-				} else if (paramClass.isAssignableFrom(GrooModel.class)) {
-					paramsValues[i] = model;
-				}
-				i++;
-			}
-
-			GrooController controller = injector.getInstance(clazz);
-			controller.request = request;
-			controller.response = response;
-			controller.validator = validator;
-			controller.model = model;
-			controller.messenger = getMessenger();
-
-			Object obj = clazz.getMethod(method.getName(), paramsClass).invoke(controller, paramsValues);
+			Class<?>[] paramsClass = method.getParameterTypes();
+			Object[] paramsValues = fillArguments(request, response, model, paramsClass);
+			GrooController controller = initializeController(request, response, controllerClass, model);
+			Method callableMethod = controllerClass.getMethod(method.getName(), paramsClass);
+			checkSecurity(controllerClass, callableMethod, request);
+			Object obj = callableMethod.invoke(controller, paramsValues);
 			resolveOutput(request, response, model, obj);
-
+		} catch (SecurityException e) {
+			System.err.println(e.getMessage());
+			response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+		} catch (NoSuchMethodException e) {
+			System.err.println(e.getMessage());
+			response.sendError(HttpServletResponse.SC_NOT_FOUND);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
 
 	}
 
+	private void checkSecurity(Class<? extends GrooController> controllerClass, Method callableMethod, HttpServletRequest request) {
+		Set<String> requiredRoles = new HashSet<String>();
+		GrooRole groorole = controllerClass.getAnnotation(GrooRole.class);
+		addRoles(groorole, requiredRoles);
+		groorole = callableMethod.getAnnotation(GrooRole.class);
+		addRoles(groorole, requiredRoles);
+		for (String requiredRole : requiredRoles) {
+			if (request.isUserInRole(requiredRole)) {
+				return;
+			}
+		}
+		if (requiredRoles.size() > 0) {
+			throw new SecurityException("User is not in any allowed role " + requiredRoles);
+		}
+	}
+
+	public void addRoles(GrooRole groorole, Set<String> requiredRoles) {
+		if (groorole != null) {
+			String[] values = groorole.value();
+			if (values != null) {
+				for (String val : values) {
+					requiredRoles.add(val);
+				}
+			}
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, String> getMappings(GroovyScriptEngine gse, HttpServletRequest request) throws ResourceException, ScriptException {
+		Map<String, String> result = (Map<String, String>) request.getSession().getServletContext().getAttribute(CONTEXT_KEY_MAPPINGS);
+		if (result == null || development) {
+			result = reloadControllersMappings(gse, request);
+			request.getSession().getServletContext().setAttribute(CONTEXT_KEY_MAPPINGS, result);
+		}
+		return result;
+	}
+
+	private GroovyScriptEngine getGroovyScriptEngine(HttpServletRequest request) throws MalformedURLException {
+		GroovyScriptEngine gse = (GroovyScriptEngine) request.getSession().getServletContext().getAttribute(CONTEXT_KEY_GSE);
+		if (gse == null || development) {
+			String scriptsRoot = request.getSession().getServletContext().getRealPath(GROOVY_PATH);
+			gse = new GroovyScriptEngine(new URL[] { new File(scriptsRoot).toURI().toURL() });
+			request.getSession().getServletContext().setAttribute(CONTEXT_KEY_GSE, gse);
+		}
+		return gse;
+	}
+
+	private GrooController initializeController(HttpServletRequest request, HttpServletResponse response, Class<? extends GrooController> clazz, GrooModel model) {
+		GrooController controller = injector.getInstance(clazz);
+		controller.request = request;
+		controller.response = response;
+		controller.validator = validator;
+		controller.model = model;
+		controller.messenger = getMessenger();
+		controller.localeResolver = localeResolver;
+		return controller;
+	}
+
+	private Object[] fillArguments(HttpServletRequest request, HttpServletResponse response, GrooModel model, Class<?>[] paramsClass) {
+		int i = 0;
+		Object[] paramsValues = new Object[paramsClass.length];
+		for (Class<?> paramClass : paramsClass) {
+			if (paramClass.isAssignableFrom(HttpServletRequest.class)) {
+				paramsValues[i] = request;
+			} else if (paramClass.isAssignableFrom(HttpServletResponse.class)) {
+				paramsValues[i] = response;
+			} else if (paramClass.isAssignableFrom(HttpSession.class)) {
+				paramsValues[i] = request.getSession();
+			} else if (paramClass.isAssignableFrom(Validator.class)) {
+				paramsValues[i] = validator;
+			} else if (paramClass.isAssignableFrom(GrooModel.class)) {
+				paramsValues[i] = model;
+			}
+			i++;
+		}
+		return paramsValues;
+	}
+
 	private GrooMessenger getMessenger() {
 		if (messenger == null || development) {
-			messenger = new GrooMessenger();
+			messenger = new GrooMessenger(development);
 		}
 		return messenger;
 	}
 
-	private void resolveOutput(HttpServletRequest request, HttpServletResponse response, GrooModel model, Object obj)
-			throws Exception {
+	private void resolveOutput(HttpServletRequest request, HttpServletResponse response, GrooModel model, Object obj) throws Exception {
 		if (obj instanceof String) {
 			String view = (String) obj;
-			if (model != null) {
-				copyModel(request, model);
-			}
 			if (StringUtils.startsWith(view, "redirect:")) {
 				response.sendRedirect(StringUtils.substringAfter(view, ":"));
-			} else {
+			} else if (view.endsWith("jsp")) {
+				copyModel(request, model);
 				request.getRequestDispatcher("/WEB-INF/jsp/" + view).forward(request, response);
+			} else if (view.endsWith("jade")) {
+				String path = request.getSession().getServletContext().getRealPath("/WEB-INF/jade");
+				JadeTemplate template = config.getTemplate(path + "/" + view);
+				config.renderTemplate(template, model, response.getWriter());
+				// Jade4J.render(view, model, response.getWriter());
 			}
 		} else {
 			mapper.writeValue(response.getOutputStream(), obj);
@@ -163,53 +237,50 @@ public class GrooServlet extends HttpServlet {
 		return method;
 	}
 
-	private Class<? extends GrooController> resolveClass(HttpServletRequest request, String[] path)
-			throws MalformedURLException, ClassNotFoundException {
-		if (gse == null || development) {
-			initializeGse(request);
-		}
+	private Class<? extends GrooController> resolveClass(GroovyScriptEngine gse, HttpServletRequest request, String groovyClassName) throws MalformedURLException, ClassNotFoundException {
 		@SuppressWarnings("unchecked")
-		Class<? extends GrooController> clazz = (Class<? extends GrooController>) gse.getGroovyClassLoader().loadClass(
-				path[0]);
+		Class<? extends GrooController> clazz = (Class<? extends GrooController>) gse.getGroovyClassLoader().loadClass(groovyClassName);
 		return clazz;
 	}
 
-	private String[] resolveMapping(HttpServletRequest request, HttpServletResponse response) throws Exception,
-			ScriptException {
+	private String[] resolveMapping(GroovyScriptEngine gse, Map<String, String> mappings, HttpServletRequest request, HttpServletResponse response) throws Exception, ScriptException {
 		String uri = request.getRequestURI();
 		Binding binding = new Binding();
 		binding.setVariable("grooweb", this);
 
-		if (gse == null || development) {
-			initializeGse(request);
-		}
-		if (mapURLs == null || mapURLs.isEmpty() || development) {
-			gse.run("conf/Mappings.groovy", binding);
-		}
-		String result = mapURLs.get(uri);
+		String result = mappings.get(request.getMethod() + " " + uri);
 		if (result == null) {
-			return null;
+			throw new NoSuchMethodException("No se ha encontrado mapping para " + request.getMethod() + " " + uri);
 		}
 		String[] path = StringUtils.split(result, ":");
 		return path;
 	}
 
-	private void initializeGse(HttpServletRequest request) throws MalformedURLException {
-		String scriptsRoot = request.getSession().getServletContext().getRealPath("/WEB-INF/groovy");
-		gse = new GroovyScriptEngine(new URL[] { new File(scriptsRoot).toURI().toURL() });
+	private Map<String, String> reloadControllersMappings(GroovyScriptEngine gse, HttpServletRequest request) throws ResourceException, ScriptException {
+		Map<String, String> mapControllers = new HashMap<String, String>();
+		File baseDir = new File(request.getSession().getServletContext().getRealPath(GROOVY_PATH + "/controller"));
+		Collection<File> files = FileUtils.listFiles(baseDir, new String[] { "groovy" }, true);
+		for (File f : files) {
+			String path = StringUtils.substringAfterLast(f.getAbsolutePath(), GROOVY_PATH + "/");
+			@SuppressWarnings("unchecked")
+			Class<? extends GrooController> groovyClazz = gse.loadScriptByName(path);
+			registerController(mapControllers, groovyClazz);
+		}
+		if (!development) {
+			request.getSession().getServletContext().setAttribute(CONTEXT_KEY_MAPPINGS, mapControllers);
+		}
+		return mapControllers;
 	}
 
-	public void registerController(Class<? extends GrooController> controllerClazz) {
-		if (mapURLs == null) {
-			mapURLs = new HashMap<String, String>();
-		}
+	private void registerController(Map<String, String> mapControllers, Class<? extends GrooController> controllerClazz) {
 		Method[] methods = controllerClazz.getDeclaredMethods();
 		for (Method m : methods) {
 			if (m.isAnnotationPresent(GrooMap.class)) {
 				GrooMap ann = m.getAnnotation(GrooMap.class);
-				mapURLs.put(ann.value(), controllerClazz.getName() + ":" + m.getName());
-//				System.out.println("Controller " + ann.value() + " >>> " + controllerClazz.getName() + ":"
-//						+ m.getName());
+				GrooRequestMethod[] reqMethods = ann.method();
+				for (GrooRequestMethod reqme : reqMethods) {
+					mapControllers.put(reqme.name() + " " + ann.value(), controllerClazz.getName() + ":" + m.getName());
+				}
 			}
 		}
 	}
