@@ -15,15 +15,13 @@ Resources included in the webapp:
   * JSR-299 Contexts and Dependency Injection, with Google Guice
   * Groovy Controllers, with save and test.
   * Ajax Ready, with Json output with Jackson Mapper
+  * Jade template engine. Se more on https://github.com/neuland/jade4j
 
 
 Look the sample opening the following files and directories:
 
   * /src/main/webapp/WEB-INF/groovy/conf/GrooModule.groovy   
               => Where the Injectable beans must be declared
-
-  * /src/main/webapp/WEB-INF/groovy/conf/Mappings.groovy     
-              => Associate URL with Groovy Controller and Method
                           
   * /src/main/webapp/WEB-INF/groovy/controller/BasicController.groovy
               => Sample Controller, with several actions
