@@ -21,7 +21,7 @@
 				<h2>Form</h1>
 				<p>with validations</p>
 				
-				<form action="/formUpdate.html" method="post">
+				<form action="${urlToPost}" method="post">
 					<label>
 						Name @Length(min=3)<br/>
 						<input name="name" value="${form.name}">

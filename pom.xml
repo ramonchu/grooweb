@@ -1,5 +1,4 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.arteco.grooweb</groupId>
 	<artifactId>grooweb</artifactId>
@@ -7,6 +6,7 @@
 	<version>0.0.1</version>
 	<name>ttoo-integraciones-web Maven Webapp</name>
 	<url>http://maven.apache.org</url>
+
 	<dependencies>
 		<dependency>
 			<groupId>javax.servlet</groupId>
@@ -75,6 +75,11 @@
 			<groupId>jstl</groupId>
 			<artifactId>jstl</artifactId>
 			<version>1.2</version>
+		</dependency>
+		<dependency>
+			<groupId>de.neuland</groupId>
+			<artifactId>jade4j</artifactId>
+			<version>0.3.8</version>
 		</dependency>
 	</dependencies>
 	<build>

@@ -1,5 +1,7 @@
 package com.arteco.grooweb.web;
 
+import java.util.Locale;
+
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Validator;
@@ -13,6 +15,8 @@ public class GrooController {
 	protected HttpServletRequest request;
 	protected HttpServletResponse response;
 	protected GrooModel model;
+	protected GrooMessenger messenger;
+	protected GrooLocaleResolver localeResolver;
 
 	public GrooErrors validate(Object obj) {
 		return new GrooErrors(validator.validate(obj));
@@ -45,5 +49,22 @@ public class GrooController {
 	@SuppressWarnings("unchecked")
 	public <T> T getParam(Class<T> clazz, String name) {
 		return (T) ConvertUtils.convert(request.getParameter(name), clazz);
+	}
+
+	public String interpolate(Locale locale, String key, Object[] vals) {
+		return messenger.interpolate(locale, key, vals);
+	}
+
+	public String interpolate(Locale locale, String key) {
+		return interpolate(locale, key, null);
+
+	}
+
+	public String interpolate(String key, Object[] vals) {
+		return interpolate(localeResolver.getLocale(request), key, vals);
+	}
+
+	public String interpolate(String key) {
+		return interpolate(localeResolver.getLocale(request), key, null);
 	}
 }
