@@ -40,10 +40,6 @@ import org.codehaus.jackson.map.ObjectMapper;
 
 import com.google.inject.Injector;
 
-import de.neuland.jade4j.Jade4J;
-import de.neuland.jade4j.JadeConfiguration;
-import de.neuland.jade4j.template.JadeTemplate;
-
 @Singleton
 public class GrooServlet extends HttpServlet {
 
@@ -61,7 +57,6 @@ public class GrooServlet extends HttpServlet {
 	private ObjectMapper mapper;
 	private GrooMessenger messenger;
 	private GrooLocaleResolver localeResolver;
-	private JadeConfiguration config;
 
 	@Override
 	@PostConstruct
@@ -72,12 +67,6 @@ public class GrooServlet extends HttpServlet {
 		ConvertUtils.register(new GrooDateConverter(), Date.class);
 		development = "true".equals(System.getProperty("grooweb.devel"));
 		localeResolver = new GrooLocaleResolver();
-		config = new JadeConfiguration();
-		config.setMode(Jade4J.Mode.XHTML);
-		if (development) {
-			config.setCaching(false);
-		}
-
 		Logger.getLogger(this.getClass().getName()).log(Level.INFO, "\n================================================\n\tGrooweb is in " + ((development) ? "DEVELOPMENT" : "PRODUCTION") + " mode\n================================================");
 
 	}
@@ -205,11 +194,8 @@ public class GrooServlet extends HttpServlet {
 			} else if (view.endsWith("jsp")) {
 				copyModel(request, model);
 				request.getRequestDispatcher("/WEB-INF/jsp/" + view).forward(request, response);
-			} else if (view.endsWith("jade")) {
-				String path = request.getSession().getServletContext().getRealPath("/WEB-INF/jade");
-				JadeTemplate template = config.getTemplate(path + "/" + view);
-				config.renderTemplate(template, model, response.getWriter());
-				// Jade4J.render(view, model, response.getWriter());
+			} else {
+				throw new IllegalArgumentException("Can't resolve view "+view);
 			}
 		} else {
 			mapper.writeValue(response.getOutputStream(), obj);
