@@ -201,6 +201,8 @@ public class GrooServlet extends HttpServlet {
 				throw new IllegalArgumentException("Can't resolve view " + view);
 			}
 		} else {
+			response.setCharacterEncoding("utf-8");
+			response.setContentType("application/json");
 			mapper.writeValue(response.getOutputStream(), obj);
 		}
 	}
