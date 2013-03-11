@@ -2,9 +2,9 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.arteco.grooweb</groupId>
 	<artifactId>grooweb</artifactId>
-	<packaging>war</packaging>
+	<packaging>jar</packaging>
 	<version>0.0.1</version>
-	<name>Grooweb Maven Webapp</name>
+	<name>Grooweb Maven Framework</name>
 	<url>http://maven.apache.org</url>
 
 	<dependencies>
@@ -97,13 +97,14 @@
 			<artifactId>datanucleus-core</artifactId>
 			<version>3.1.4</version>
 		</dependency>
+		<dependency>
+			<groupId>org.datanucleus</groupId>
+			<artifactId>datanucleus-enhancer</artifactId>
+			<version>3.1.1</version>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>
-			<plugin>
-				<groupId>org.eclipse.jetty</groupId>
-				<artifactId>jetty-maven-plugin</artifactId>
-			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>

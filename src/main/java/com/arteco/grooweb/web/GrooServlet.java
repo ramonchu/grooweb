@@ -57,6 +57,7 @@ public class GrooServlet extends HttpServlet {
 	private ObjectMapper mapper;
 	private GrooMessenger messenger;
 	private GrooLocaleResolver localeResolver;
+	private GrooPersistence grooPersistence;
 
 	@Override
 	@PostConstruct
@@ -68,7 +69,7 @@ public class GrooServlet extends HttpServlet {
 		development = "true".equals(System.getProperty("grooweb.devel"));
 		localeResolver = new GrooLocaleResolver();
 		Logger.getLogger(this.getClass().getName()).log(Level.INFO, "\n================================================\n\tGrooweb is in " + ((development) ? "DEVELOPMENT" : "PRODUCTION") + " mode\n================================================");
-
+		grooPersistence = new GrooPersistence();
 	}
 
 	@Override
@@ -156,6 +157,8 @@ public class GrooServlet extends HttpServlet {
 		controller.model = model;
 		controller.messenger = getMessenger();
 		controller.localeResolver = localeResolver;
+		controller.persistenceManager = grooPersistence.getPersistenceManager();
+		controller.init();
 		return controller;
 	}
 
@@ -195,7 +198,7 @@ public class GrooServlet extends HttpServlet {
 				copyModel(request, model);
 				request.getRequestDispatcher("/WEB-INF/jsp/" + view).forward(request, response);
 			} else {
-				throw new IllegalArgumentException("Can't resolve view "+view);
+				throw new IllegalArgumentException("Can't resolve view " + view);
 			}
 		} else {
 			mapper.writeValue(response.getOutputStream(), obj);

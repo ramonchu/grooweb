@@ -2,6 +2,7 @@ package com.arteco.grooweb.web;
 
 import java.util.Locale;
 
+import javax.jdo.PersistenceManager;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Validator;
@@ -9,7 +10,7 @@ import javax.validation.Validator;
 import org.apache.commons.beanutils.BeanUtils;
 import org.apache.commons.beanutils.ConvertUtils;
 
-public class GrooController {
+public abstract class GrooController {
 
 	protected Validator validator;
 	protected HttpServletRequest request;
@@ -17,6 +18,10 @@ public class GrooController {
 	protected GrooModel model;
 	protected GrooMessenger messenger;
 	protected GrooLocaleResolver localeResolver;
+	protected PersistenceManager persistenceManager;
+
+	public void init() {
+	};
 
 	public GrooErrors validate(Object obj) {
 		return new GrooErrors(validator.validate(obj));

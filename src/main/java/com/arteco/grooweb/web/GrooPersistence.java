@@ -2,18 +2,51 @@ package com.arteco.grooweb.web;
 
 import java.util.Properties;
 
+import javax.jdo.JDOEnhancer;
 import javax.jdo.JDOHelper;
+import javax.jdo.PersistenceManager;
 import javax.jdo.PersistenceManagerFactory;
 
+import org.apache.commons.lang.StringUtils;
+
 public class GrooPersistence {
+
+	private PersistenceManagerFactory pmf;
+	private Properties props;
+	private PersistenceManager pm;
+
 	public GrooPersistence() {
-		Properties properties = new Properties();
-		properties.setProperty("javax.jdo.PersistenceManagerFactoryClass", "org.datanucleus.jdo.JDOPersistenceManagerFactory");
-		properties.setProperty("javax.jdo.option.ConnectionDriverName", "com.mysql.jdbc.Driver");
-		properties.setProperty("javax.jdo.option.ConnectionURL", "jdbc:mysql://localhost/myDB");
-		properties.setProperty("javax.jdo.option.ConnectionUserName", "login");
-		properties.setProperty("javax.jdo.option.ConnectionPassword", "password");
-		PersistenceManagerFactory pmf = JDOHelper.getPersistenceManagerFactory(properties);
-		
+		try {
+			Properties props = new Properties();
+			props.load(this.getClass().getResourceAsStream("/datanucleus.properties"));
+			pmf = JDOHelper.getPersistenceManagerFactory(props);
+
+			JDOEnhancer enhancer = JDOHelper.getEnhancer();
+			enhancer.setVerbose(true);
+
+			for (Object entry : props.keySet()) {
+				if (entry instanceof String) {
+					String key = (String) entry;
+					if (StringUtils.startsWith(key, "datanucleus.entity")) {
+						enhancer.addClasses(props.getProperty(key));
+					}
+				}
+
+			}
+
+			enhancer.enhance();
+			pm = pmf.getPersistenceManager();
+		} catch (Exception e) {
+			throw new IllegalArgumentException(e.getMessage(), e);
+		}
+
+	}
+
+	public PersistenceManager getPersistenceManager() {
+		return pm;
+	}
+
+	public Properties getProperties() {
+		return props;
 	}
 }
