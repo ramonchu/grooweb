@@ -20,9 +20,10 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServlet;
@@ -48,7 +49,6 @@ public class GrooServlet extends HttpServlet {
 	private static final String GROOVY_PATH = "/WEB-INF/groovy";
 
 	private static final String CONTEXT_KEY_MAPPINGS = "grooweb.mappings";
-	private static final String CONTEXT_KEY_GSE = "grooweb.gse";
 
 	@Inject
 	private Injector injector;
@@ -58,10 +58,11 @@ public class GrooServlet extends HttpServlet {
 	private GrooMessenger messenger;
 	private GrooLocaleResolver localeResolver;
 	private GrooPersistence grooPersistence;
+	private GroovyScriptEngine gse;
 
 	@Override
-	@PostConstruct
-	public void init() {
+	public void init(ServletConfig config) throws ServletException {
+		super.init(config);
 		ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
 		validator = factory.getValidator();
 		mapper = new ObjectMapper();
@@ -70,6 +71,13 @@ public class GrooServlet extends HttpServlet {
 		localeResolver = new GrooLocaleResolver();
 		Logger.getLogger(this.getClass().getName()).log(Level.INFO, "\n================================================\n\tGrooweb is in " + ((development) ? "DEVELOPMENT" : "PRODUCTION") + " mode\n================================================");
 		grooPersistence = new GrooPersistence();
+
+		try {
+			String scriptsRoot = config.getServletContext().getRealPath(GROOVY_PATH);
+			gse = new GroovyScriptEngine(new URL[] { new File(scriptsRoot).toURI().toURL() });
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -77,7 +85,6 @@ public class GrooServlet extends HttpServlet {
 		HttpServletRequest request = (HttpServletRequest) req;
 		HttpServletResponse response = (HttpServletResponse) res;
 		try {
-			GroovyScriptEngine gse = getGroovyScriptEngine(request);
 			Map<String, String> mappings = getMappings(gse, request);
 			String[] path = resolveMapping(gse, mappings, request, response);
 			Class<? extends GrooController> controllerClass = resolveClass(gse, request, path[0]);
@@ -137,16 +144,6 @@ public class GrooServlet extends HttpServlet {
 			request.getSession().getServletContext().setAttribute(CONTEXT_KEY_MAPPINGS, result);
 		}
 		return result;
-	}
-
-	private GroovyScriptEngine getGroovyScriptEngine(HttpServletRequest request) throws MalformedURLException {
-		GroovyScriptEngine gse = (GroovyScriptEngine) request.getSession().getServletContext().getAttribute(CONTEXT_KEY_GSE);
-		if (gse == null || development) {
-			String scriptsRoot = request.getSession().getServletContext().getRealPath(GROOVY_PATH);
-			gse = new GroovyScriptEngine(new URL[] { new File(scriptsRoot).toURI().toURL() });
-			request.getSession().getServletContext().setAttribute(CONTEXT_KEY_GSE, gse);
-		}
-		return gse;
 	}
 
 	private GrooController initializeController(HttpServletRequest request, HttpServletResponse response, Class<? extends GrooController> clazz, GrooModel model) {
