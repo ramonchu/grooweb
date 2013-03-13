@@ -94,7 +94,7 @@ public class GrooServlet extends HttpServlet {
 			Method callableMethod = controllerClass.getMethod(method.getName(), paramsClass);
 			checkSecurity(controllerClass, callableMethod, request);
 			Object obj = callableMethod.invoke(controller, paramsValues);
-			resolveOutput(request, response, model, obj);
+			resolveOutput(request, response, controller, model, obj);
 		} catch (SecurityException e) {
 			System.err.println(e.getMessage());
 			response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
@@ -183,7 +183,10 @@ public class GrooServlet extends HttpServlet {
 		return messenger;
 	}
 
-	private void resolveOutput(HttpServletRequest request, HttpServletResponse response, GrooModel model, Object obj) throws Exception {
+	private void resolveOutput(HttpServletRequest request, HttpServletResponse response, GrooController controller, GrooModel model, Object obj) throws Exception {
+		request.setAttribute("grooMessenger", controller.messenger);
+		request.setAttribute("grooLocaleResolver", controller.localeResolver);
+
 		if (obj instanceof String) {
 			String view = (String) obj;
 			if (StringUtils.startsWith(view, "redirect:")) {
