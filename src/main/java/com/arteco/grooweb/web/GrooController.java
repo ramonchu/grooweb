@@ -2,7 +2,6 @@ package com.arteco.grooweb.web;
 
 import java.util.Locale;
 
-import javax.jdo.PersistenceManager;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.validation.Validator;
@@ -18,7 +17,6 @@ public abstract class GrooController {
 	protected GrooModel model;
 	protected GrooMessenger messenger;
 	protected GrooLocaleResolver localeResolver;
-	protected PersistenceManager persistenceManager;
 
 	public void init() {
 	};

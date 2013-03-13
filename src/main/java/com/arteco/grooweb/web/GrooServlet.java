@@ -57,7 +57,6 @@ public class GrooServlet extends HttpServlet {
 	private ObjectMapper mapper;
 	private GrooMessenger messenger;
 	private GrooLocaleResolver localeResolver;
-	private GrooPersistence grooPersistence;
 	private GroovyScriptEngine gse;
 
 	@Override
@@ -70,7 +69,6 @@ public class GrooServlet extends HttpServlet {
 		development = "true".equals(System.getProperty("grooweb.devel"));
 		localeResolver = new GrooLocaleResolver();
 		Logger.getLogger(this.getClass().getName()).log(Level.INFO, "\n================================================\n\tGrooweb is in " + ((development) ? "DEVELOPMENT" : "PRODUCTION") + " mode\n================================================");
-		grooPersistence = new GrooPersistence();
 
 		try {
 			String scriptsRoot = config.getServletContext().getRealPath(GROOVY_PATH);
@@ -154,7 +152,6 @@ public class GrooServlet extends HttpServlet {
 		controller.model = model;
 		controller.messenger = getMessenger();
 		controller.localeResolver = localeResolver;
-		controller.persistenceManager = grooPersistence.getPersistenceManager();
 		controller.init();
 		return controller;
 	}
