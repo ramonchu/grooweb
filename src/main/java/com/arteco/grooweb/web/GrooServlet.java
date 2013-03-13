@@ -68,8 +68,10 @@ public class GrooServlet extends HttpServlet {
 		ConvertUtils.register(new GrooDateConverter(), Date.class);
 		development = "true".equals(System.getProperty("grooweb.devel"));
 		localeResolver = new GrooLocaleResolver();
-		Logger.getLogger(this.getClass().getName()).log(Level.INFO, "\n================================================\n\tGrooweb is in " + ((development) ? "DEVELOPMENT" : "PRODUCTION") + " mode\n================================================");
-
+		Logger.getLogger(this.getClass().getName()).log(Level.INFO, "\n================================================\n\tGrooweb is in " + ((development) ? "DEVELOPMENT" : "PRODUCTION") + " mode" + "\n================================================");
+		if (!development) {
+			Logger.getLogger(this.getClass().getName()).log(Level.INFO, "\n================================================\n\tUse -Dgrooweb.devel=true for development mode" + "\n================================================");
+		}
 		try {
 			String scriptsRoot = config.getServletContext().getRealPath(GROOVY_PATH);
 			gse = new GroovyScriptEngine(new URL[] { new File(scriptsRoot).toURI().toURL() });

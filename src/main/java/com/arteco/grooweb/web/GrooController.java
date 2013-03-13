@@ -38,7 +38,7 @@ public abstract class GrooController {
 		try {
 			T form = formClass.newInstance();
 			populate(form);
-			GrooPopul<T> result = new GrooPopul<T>(form, validate(form));
+			GrooPopul<T> result = new GrooPopul<T>(form, validate(form), messenger, localeResolver, request);
 			return result;
 		} catch (Exception e) {
 			throw new IllegalArgumentException(e.getMessage(), e);
