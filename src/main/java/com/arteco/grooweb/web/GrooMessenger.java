@@ -8,6 +8,7 @@ import java.util.Properties;
 
 import org.apache.commons.beanutils.ConvertUtils;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.Validate;
 
 public class GrooMessenger {
 
@@ -19,6 +20,8 @@ public class GrooMessenger {
 	}
 
 	public String interpolate(Locale locale, String key, Object[] vals) {
+		Validate.notNull(locale);
+		Validate.notNull(key);
 		Properties prop = getMessages(locale);
 		String template = prop.getProperty(key);
 		if (vals != null) {

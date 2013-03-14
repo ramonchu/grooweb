@@ -6,8 +6,12 @@ import java.net.URL;
 
 import javax.servlet.ServletContext;
 import javax.servlet.ServletContextEvent;
+import javax.validation.Validation;
+import javax.validation.Validator;
+import javax.validation.ValidatorFactory;
 
-import com.arteco.grooweb.web.GrooServlet;
+import org.codehaus.jackson.map.ObjectMapper;
+
 import com.google.inject.AbstractModule;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
@@ -21,6 +25,10 @@ public class GrooServletContexListener extends GuiceServletContextListener {
 	private GroovyScriptEngine engine;
 	private ServletContext servletContext;
 
+	private Validator validator;
+	private ObjectMapper mapper;
+	private GrooLocaleResolver localeResolver;
+
 	@Override
 	public void contextInitialized(ServletContextEvent servletContextEvent) {
 		this.servletContext = servletContextEvent.getServletContext();
@@ -33,11 +41,20 @@ public class GrooServletContexListener extends GuiceServletContextListener {
 	}
 
 	private Module servletModule() {
+		ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
+		validator = factory.getValidator();
+		mapper = new ObjectMapper();
+		localeResolver = new GrooLocaleResolver();
+
 		Module grooModule = null;
 		try {
 			URL urlBase = servletContext.getResource("/WEB-INF/groovy/conf/");
 			engine = new GroovyScriptEngine(new URL[] { urlBase });
-			grooModule = (Module) engine.loadScriptByName("GrooModule.groovy").newInstance();
+			@SuppressWarnings("unchecked")
+			Class<? extends GrooAppModule> grooModuleClass = engine.loadScriptByName("GrooModule.groovy");
+			GrooAppModule grooAppModule = grooModuleClass.newInstance();
+			grooAppModule.configureMapper(mapper);
+			grooModule = grooAppModule;
 		} catch (Exception e) {
 			e.printStackTrace();
 			grooModule = new AbstractModule() {
@@ -53,6 +70,9 @@ public class GrooServletContexListener extends GuiceServletContextListener {
 
 			@Override
 			protected void configureServlets() {
+				bind(Validator.class).toInstance(validator);
+				bind(ObjectMapper.class).toInstance(mapper);
+				bind(GrooLocaleResolver.class).toInstance(localeResolver);
 				serve("*.html", "*.json").with(GrooServlet.class);
 			}
 		}).with(grooModule);

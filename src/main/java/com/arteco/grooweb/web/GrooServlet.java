@@ -30,9 +30,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
-import javax.validation.Validation;
 import javax.validation.Validator;
-import javax.validation.ValidatorFactory;
 
 import org.apache.commons.beanutils.ConvertUtils;
 import org.apache.commons.io.FileUtils;
@@ -48,26 +46,31 @@ public class GrooServlet extends HttpServlet {
 
 	private static final String GROOVY_PATH = "/WEB-INF/groovy";
 
-	private static final String CONTEXT_KEY_MAPPINGS = "grooweb.mappings";
-
 	@Inject
 	private Injector injector;
-	private boolean development;
+
+	@Inject
 	private Validator validator;
+
+	@Inject
 	private ObjectMapper mapper;
-	private GrooMessenger messenger;
+
+	@Inject
 	private GrooLocaleResolver localeResolver;
+
+	private boolean development;
 	private GroovyScriptEngine gse;
+	private File controllersBaseDir;
+	private GrooRoutes routes;
+	private GrooMessenger messenger;
 
 	@Override
 	public void init(ServletConfig config) throws ServletException {
 		super.init(config);
-		ValidatorFactory factory = Validation.buildDefaultValidatorFactory();
-		validator = factory.getValidator();
-		mapper = new ObjectMapper();
+
 		ConvertUtils.register(new GrooDateConverter(), Date.class);
 		development = "true".equals(System.getProperty("grooweb.devel"));
-		localeResolver = new GrooLocaleResolver();
+
 		Logger.getLogger(this.getClass().getName()).log(Level.INFO, "\n================================================\n\tGrooweb is in " + ((development) ? "DEVELOPMENT" : "PRODUCTION") + " mode" + "\n================================================");
 		if (!development) {
 			Logger.getLogger(this.getClass().getName()).log(Level.INFO, "\n================================================\n\tUse -Dgrooweb.devel=true for development mode" + "\n================================================");
@@ -78,6 +81,9 @@ public class GrooServlet extends HttpServlet {
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+		controllersBaseDir = new File(config.getServletContext().getRealPath(GROOVY_PATH + "/controller"));
+		routes = new GrooRoutes();
+
 	}
 
 	@Override
@@ -109,14 +115,22 @@ public class GrooServlet extends HttpServlet {
 
 	}
 
+	@SuppressWarnings("unchecked")
 	private void checkSecurity(Class<? extends GrooController> controllerClass, Method callableMethod, HttpServletRequest request) {
 		Set<String> requiredRoles = new HashSet<String>();
 		GrooRole groorole = controllerClass.getAnnotation(GrooRole.class);
 		addRoles(groorole, requiredRoles);
 		groorole = callableMethod.getAnnotation(GrooRole.class);
 		addRoles(groorole, requiredRoles);
+
+		Set<String> userRoles = (Set<String>) request.getSession().getAttribute("grooRoles");
+		if (userRoles == null) {
+			userRoles = new HashSet<String>();
+			request.getSession().setAttribute("grooRoles", userRoles);
+		}
+
 		for (String requiredRole : requiredRoles) {
-			if (request.isUserInRole(requiredRole)) {
+			if (userRoles.contains(requiredRole)) {
 				return;
 			}
 		}
@@ -136,12 +150,19 @@ public class GrooServlet extends HttpServlet {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	private Map<String, String> getMappings(GroovyScriptEngine gse, HttpServletRequest request) throws ResourceException, ScriptException {
-		Map<String, String> result = (Map<String, String>) request.getSession().getServletContext().getAttribute(CONTEXT_KEY_MAPPINGS);
-		if (result == null || development) {
-			result = reloadControllersMappings(gse, request);
-			request.getSession().getServletContext().setAttribute(CONTEXT_KEY_MAPPINGS, result);
+		Map<String, String> result = routes.getAllRoutes();
+		if (result.isEmpty() || development) {
+			Collection<File> files = FileUtils.listFiles(controllersBaseDir, new String[] { "groovy" }, true);
+			for (File controllerFile : files) {
+				long modtime = controllerFile.lastModified();
+				Long l = routes.getLasModification(controllerFile);
+				if (l == null || modtime > l) {
+					Map<String, String> controllerUrls = reloadControllersMappings(gse, request, controllerFile);
+					routes.updateRoutes(controllerFile, controllerUrls);
+				}
+			}
+			result = routes.update(files);
 		}
 		return result;
 	}
@@ -246,19 +267,16 @@ public class GrooServlet extends HttpServlet {
 		return path;
 	}
 
-	private Map<String, String> reloadControllersMappings(GroovyScriptEngine gse, HttpServletRequest request) throws ResourceException, ScriptException {
+	private Map<String, String> reloadControllersMappings(GroovyScriptEngine gse, HttpServletRequest request, File f) throws ResourceException, ScriptException {
 		Map<String, String> mapControllers = new HashMap<String, String>();
-		File baseDir = new File(request.getSession().getServletContext().getRealPath(GROOVY_PATH + "/controller"));
-		Collection<File> files = FileUtils.listFiles(baseDir, new String[] { "groovy" }, true);
-		for (File f : files) {
-			String path = StringUtils.substringAfterLast(f.getAbsolutePath(), GROOVY_PATH + "/");
-			@SuppressWarnings("unchecked")
-			Class<? extends GrooController> groovyClazz = gse.loadScriptByName(path);
-			registerController(mapControllers, groovyClazz);
-		}
-		if (!development) {
-			request.getSession().getServletContext().setAttribute(CONTEXT_KEY_MAPPINGS, mapControllers);
-		}
+		// File baseDir = new File(request.getSession().getServletContext().getRealPath(GROOVY_PATH + "/controller"));
+		// Collection<File> files = FileUtils.listFiles(baseDir, new String[] { "groovy" }, true);
+		// for (File f : files) {
+		String path = StringUtils.substringAfterLast(f.getAbsolutePath(), GROOVY_PATH + "/");
+		@SuppressWarnings("unchecked")
+		Class<? extends GrooController> groovyClazz = gse.loadScriptByName(path);
+		registerController(mapControllers, groovyClazz);
+		// }
 		return mapControllers;
 	}
 
