@@ -57,6 +57,9 @@ public class GrooServlet extends HttpServlet {
 
 	@Inject
 	private GrooLocaleResolver localeResolver;
+	
+	@Inject
+	private GrooSecurityProvider securityProvider;
 
 	private boolean development;
 	private GroovyScriptEngine gse;
@@ -115,7 +118,6 @@ public class GrooServlet extends HttpServlet {
 
 	}
 
-	@SuppressWarnings("unchecked")
 	private void checkSecurity(Class<? extends GrooController> controllerClass, Method callableMethod, HttpServletRequest request) {
 		Set<String> requiredRoles = new HashSet<String>();
 		GrooRole groorole = controllerClass.getAnnotation(GrooRole.class);
@@ -123,12 +125,7 @@ public class GrooServlet extends HttpServlet {
 		groorole = callableMethod.getAnnotation(GrooRole.class);
 		addRoles(groorole, requiredRoles);
 
-		Set<String> userRoles = (Set<String>) request.getSession().getAttribute("grooRoles");
-		if (userRoles == null) {
-			userRoles = new HashSet<String>();
-			request.getSession().setAttribute("grooRoles", userRoles);
-		}
-
+		Set<String> userRoles = securityProvider.getUserRoles(request);
 		for (String requiredRole : requiredRoles) {
 			if (userRoles.contains(requiredRole)) {
 				return;

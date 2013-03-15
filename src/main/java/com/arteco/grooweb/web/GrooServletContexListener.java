@@ -73,6 +73,7 @@ public class GrooServletContexListener extends GuiceServletContextListener {
 				bind(Validator.class).toInstance(validator);
 				bind(ObjectMapper.class).toInstance(mapper);
 				bind(GrooLocaleResolver.class).toInstance(localeResolver);
+				bind(GrooSecurityProvider.class).toInstance(new GrooSimpleSecurityProvider());
 				serve("*.html", "*.json").with(GrooServlet.class);
 			}
 		}).with(grooModule);
