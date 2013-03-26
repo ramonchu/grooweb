@@ -34,6 +34,17 @@ public abstract class GrooController {
 
 	}
 
+	public <T> T populateClass(Class<T> clazz) {
+		try {
+			T obj = clazz.newInstance();
+			BeanUtils.populate(obj, request.getParameterMap());
+			return obj;
+		} catch (Exception e) {
+			throw new IllegalArgumentException(e.getMessage(), e);
+		}
+
+	}
+
 	public <T> GrooPopul<T> populidate(Class<T> formClass) {
 		try {
 			T form = formClass.newInstance();
