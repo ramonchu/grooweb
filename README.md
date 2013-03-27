@@ -37,3 +37,75 @@ Usage
 =====
 
 Simply, clone the repo and launch mvn jetty:run
+
+
+Sample
+======
+
+Sample method in one controller class:
+
+```java
+ @GrooMap(value="/form.html",method=GrooRequestMethod.POST)
+ public String formUpdate(){
+	 def popul = populidate(BasicForm.class);
+		if(!popul.hasError()){
+		 //update changes in service layer, and do redirect after post
+			return "formOk.jsp";
+		}else{
+			//show de  html form with errors
+			model.put("urlToPost", "/form.html");
+			model.put("form", popul.getValue());
+			model.put("errors", popul.getErrors());
+			return "form.jsp";
+		}
+	}
+```
+
+You have to put the annotation @GrooMap into public method to handle request. 
+If the result is instance of String, the framework redirects to standar jsp page, but
+if the method returns another object, it'll be serialized into json stream.
+
+
+Injection
+=========
+
+It's possible inject 'static' services with @Inject, served by google guice.
+
+```java
+class MyController extends GrooController{
+ 
+ @Inject
+ private MyService myservice;
+ 
+ @GrooMap(value="/anypage.html",method=GrooRequestMethod.GET)
+ public String anypage(){
+  myservice.doAnyLogic();
+  return "anypage.jsp";
+ }
+}
+```
+
+
+Security
+========
+
+If you want protect methods of any controller, add @GrooRole("<PROTECTED_ROLE>") before the 
+target methods
+
+```java
+class MyController extends GrooController{
+ 
+ @Inject
+ private MyService myservice;
+ 
+ @GrooRole("ADMIN")
+ @GrooMap(value="/anypage.html",method=GrooRequestMethod.GET)
+ public String anypage(){
+  myservice.doAnyLogic();
+  return "anypage.jsp";
+	}
+}
+```
+
+
+Your contribution is welcomed!
